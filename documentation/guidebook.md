@@ -39,7 +39,7 @@ You can get push button Calm in two ways. It is best to decide by answering this
 - __Multiple:__ or to use development branches, satisfy these requirements:
 
     1. Tested on Ubuntu and Mac, but could work easily on other Linux distributions.
-        - Mac requires https://brew.sh installed.
+        - Mac requires https://brew.sh installed, which first requires ``xcode-select --install``
     2. Terminal with command line git.
 
       echo "Start Foundation on your HPoC now, script retries for 60 minutes..."
@@ -157,9 +157,16 @@ It is easy to do a full day of enablement on Calm. There are many topics which y
           - Qualification questions
           - Competitive analysis/Objection Handling
       - How to demo Calm in 5, 10, 20 minutes
-        - HPOC vs. demo vs expo.nutanix.com
-      - [Calm History, OrgChart, Resources](https://sites.google.com/a/nutanix.com/corp/calm)
+        - Where: HPOC versus demo.nutanix.com versus expo.nutanix.com
+          - Be aware that I never do a Calm demo in less than 30 minutes because the platform can address so many use cases. It is better to do discovery, qualification of use cases, and  plan a follow up engagement than it is to do short demo.
+        - 5 minute Calm demo outline:
+          - Just rip through the presentation slides! If there is interest, create a SFDC opp and schedule the follow up with Calm seller team.
+        - 10 minute Calm demo outline:
+          - Skip the slides and message: Calm delivers enterprise applications with a few clicks
+          - Show the marketplace, launch a LAMP blueprint, show application profiles with TCO, launch and audit the deployment, explain operations in flight
+        - 20 minute Calm demo outline:
 
+      - [Calm History, OrgChart, Resources](https://sites.google.com/a/nutanix.com/corp/calm)
       - Deeper dives and advanced features (later in the day, second day, etc.):
         - Calm Releases and Roadmap
           - Calm LCM 2.x feature releases

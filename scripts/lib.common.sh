@@ -411,6 +411,7 @@ function ntnx_download() {
       if [[ -z ${_meta_url} ]]; then
         _error=22
         log "Error ${_error}: unsupported PC_VERSION=${PC_VERSION}!"
+        log 'Sync the following to global.var.sh...'
         log 'Browse to https://portal.nutanix.com/#/page/releases/prismDetails'
         log " - Find ${PC_VERSION} in the Additional Releases section on the lower right side"
         log ' - Provide the metadata URL for the "PC 1-click deploy from PE" option to this function, both case stanzas.'
@@ -446,6 +447,7 @@ function ntnx_download() {
       if [[ -z ${_meta_url} ]]; then
         _error=22
         log "Error ${_error}: unsupported FILES_VERSION=${FILES_VERSION}!"
+        log 'Sync the following to global.var.sh...'
         log 'Browse to https://portal.nutanix.com/#/page/releases/afsDetails?targetVal=GA'
         log " - Find ${FILES_VERSION} in the Additional Releases section on the lower right side"
         log ' - Provide the metadata URL option to this function, both case stanzas.'
@@ -599,12 +601,17 @@ function prism_check {
 
     if (( ${_test} == 401 )); then
       log "Warning: unauthorized ${1} user or password on ${_host}."
-    fi
 
-    if (( ${_test} == 401 )) && [[ ${1} == 'PC' && ${_password} != "${_pw_init}" ]]; then
-      _password=${_pw_init}
-      log "Warning @${1}: Fallback on ${_host}: try initial password next cycle..."
-      _sleep=0 #break
+      if [[ ${1} == 'PC' && ${_password} != "${_pw_init}" ]]; then
+        _password=${_pw_init}
+        log "Warning @${1}: Fallback on ${_host}: try initial password next cycle..."
+        #_sleep=0 #break
+      elif [[ ${1} == 'PC' && ${_password} == "${_pw_init}" && ${PC_VERSION} == "${PC_DEV_VERSION}" ]]; then
+        _password=${PE_PASSWORD}
+        log "Warning @${1}-dev: Fallback on ${_host}: try PE cluster password next cycle..."
+        #_sleep=0 #break
+      fi
+
     fi
 
     if (( ${_test} == 200 )); then

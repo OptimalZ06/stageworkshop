@@ -57,6 +57,7 @@ function authentication_source() {
          'http://10.132.128.50:81/share/saved-images/autodc-2.0.qcow2' \
          'nfs://pocfs.nutanixdc.local/images/CorpSE_Calm/autodc-2.0.qcow2' \
         # 'smb://pocfs.nutanixdc.local/images/CorpSE_Calm/autodc-2.0.qcow2' \
+         'https://s3.amazonaws.com/get-ahv-images/AutoDC2.qcow2' \
          'http://10.59.103.143:8000/autodc-2.0.qcow2' \
         )
       fi
@@ -178,9 +179,15 @@ function files_install() {
 }
 
 function network_configure() {
+  local _network_name="${NW1_NAME}"
 
-  if [[ ! -z $(acli "net.list" | grep ${NW1_NAME}) ]]; then
-    log "IDEMPOTENCY: ${NW1_NAME} network set, skip."
+  if [[ ! -z "${NW2_NAME}" ]]; then
+    #TODO: accommodate for X networks!
+    _network_name="${NW2_NAME}"
+  fi
+
+  if [[ ! -z $(acli "net.list" | grep ${_network_name}) ]]; then
+    log "IDEMPOTENCY: ${_network_name} network set, skip."
   else
     args_required 'AUTH_DOMAIN IPV4_PREFIX AUTH_HOST'
 
@@ -208,6 +215,17 @@ function pc_configure() {
   local      _command
   local    _container
   local _dependencies="global.vars.sh lib.common.sh lib.pc.sh ${PC_LAUNCH}"
+  local   _pc_version
+  local         _test
+
+  # shellcheck disable=2206
+  _pc_version=(${PC_VERSION//./ })
+  if (( ${_pc_version[0]} >= 5 && ${_pc_version[1]} >= 10 )); then
+     _test=$(ncli multicluster add-to-multicluster \
+       external-ip-address-or-svm-ips=${PC_HOST} \
+       username=${PRISM_ADMIN} password=${PE_PASSWORD})
+     log "PC>=5.10, manual join PE to PC = |${_test}|"
+  fi
 
   if [[ -e ${RELEASE} ]]; then
     _dependencies+=" ${RELEASE}"
@@ -215,9 +233,9 @@ function pc_configure() {
     log 'Warning: did NOT find '${RELEASE}
   fi
   log "Send configuration scripts to PC and remove: ${_dependencies}"
-  remote_exec 'scp' 'PC' "${_dependencies}" && rm -f ${_dependencies}
+  remote_exec 'scp' 'PC' "${_dependencies}" && rm -f ${_dependencies} lib.pe.sh
 
-  _dependencies="${JQ_PACKAGE} ${SSHPASS_PACKAGE} id_rsa.pub"
+  _dependencies="bin/${JQ_REPOS[0]##*/} ${SSHPASS_REPOS[0]##*/} id_rsa.pub"
 
   log "OPTIONAL: Send binary dependencies to PC: ${_dependencies}"
   remote_exec 'scp' 'PC' "${_dependencies}" 'OPTIONAL'
@@ -241,6 +259,8 @@ function pc_install() {
   local    _ncli_softwaretype='PRISM_CENTRAL_DEPLOY'
   local              _nw_name="${1}"
   local              _nw_uuid
+  local           _pc_version
+  local _should_auto_register
   local _storage_default_uuid
   local                 _test
 
@@ -270,6 +290,12 @@ function pc_install() {
       log "IDEMPOTENCY: PC-${PC_VERSION} upload already completed."
     fi
 
+    # shellcheck disable=2206
+    _pc_version=(${PC_VERSION//./ })
+    if (( ${_pc_version[0]} = 5 && ${_pc_version[1]} <= 6 )); then
+      _should_auto_register='"should_auto_register":true,'
+    fi
+
     log "Deploy Prism Central (typically takes 17+ minutes)..."
     # TODO:160 make scale-out & dynamic, was: 4vCPU/16GB = 17179869184, 8vCPU/40GB = 42949672960
     # Sizing suggestions, certified configurations:
@@ -279,7 +305,7 @@ function pc_install() {
     HTTP_BODY=$(cat <<EOF
 {
   "resources": {
-    "should_auto_register":true,
+    ${_should_auto_register}
     "version":"${PC_VERSION}",
     "pc_vm_list":[{
       "data_disk_size_bytes":536870912000,
@@ -320,6 +346,7 @@ function pe_auth() {
   if [[ -z $(ncli authconfig list-directory name=${AUTH_DOMAIN} | grep Error) ]]; then
     log "IDEMPOTENCY: ${AUTH_DOMAIN} directory set, skip."
   else
+    # https://portal.nutanix.com/kb/1005
     _aos=$(ncli --json=true cluster info | jq -r .data.version)
 
     if [[ ! -z ${_aos} ]]; then
@@ -395,6 +422,7 @@ function pe_init() {
 }
 
 function pe_license() {
+  local _test
   args_required 'CURL_POST_OPTS PE_PASSWORD'
 
   log "IDEMPOTENCY: Checking PC API responds, curl failures are acceptable..."
@@ -403,15 +431,14 @@ function pe_license() {
   if (( $? == 0 )) ; then
     log "IDEMPOTENCY: PC API responds, skip"
   else
-    log "Validate EULA on PE"
-    curl ${CURL_POST_OPTS} --user ${PRISM_ADMIN}:${PE_PASSWORD} -X POST --data '{
+    _test=$(curl ${CURL_POST_OPTS} --user ${PRISM_ADMIN}:${PE_PASSWORD} -X POST --data '{
       "username": "SE with $(basename ${0})",
       "companyName": "Nutanix",
       "jobTitle": "SE"
-    }' https://localhost:9440/PrismGateway/services/rest/v1/eulas/accept
+    }' https://localhost:9440/PrismGateway/services/rest/v1/eulas/accept)
+    log "Validate EULA on PE: _test=|${_test}|"
 
-    log "Disable Pulse in PE"
-    curl ${CURL_POST_OPTS} --user ${PRISM_ADMIN}:${PE_PASSWORD} -X PUT --data '{
+    _test=$(curl ${CURL_POST_OPTS} --user ${PRISM_ADMIN}:${PE_PASSWORD} -X PUT --data '{
       "defaultNutanixEmail": null,
       "emailContactList": null,
       "enable": false,
@@ -420,7 +447,8 @@ function pe_license() {
       "nosVersion": null,
       "remindLater": null,
       "verbosityType": null
-    }' https://localhost:9440/PrismGateway/services/rest/v1/pulse
+    }' https://localhost:9440/PrismGateway/services/rest/v1/pulse)
+    log "Disable Pulse in PE: _test=|${_test}|"
 
     #echo; log "Create PE Banner Login" # TODO: for PC, login banner
     # https://portal.nutanix.com/#/page/docs/details?targetId=Prism-Central-Guide-Prism-v56:mul-welcome-banner-configure-pc-t.html

@@ -22,7 +22,6 @@
 # Bugs #
 
 - BUG = AOS 5.9, 5.10: all calm.sh PC service timeout detect/retry
-  - Notify Nathan and bart.grootzevert when fixed
   - 2018-10-24 21:54:23|14165|Determine_PE|Warning: expect errors on lines 1-2, due to non-JSON outputs by nuclei...
   E1024 21:54:24.142107   14369 jwt.go:35] ZK session is nil
   2018/10/24 21:54:24 Failed to connect to the server: websocket.Dial ws://127.0.0.1:9444/icli: bad status: 403
@@ -33,6 +32,16 @@
     2018-12-26 16:05:26|96508|calm_enable|_test=||
     2018-12-26 16:05:26|96508|lcm|PC_VERSION 5.10.0.1 >= 5.9, starting LCM inventory...
     2018-12-26 16:05:26|96508|lcm|inventory _test=|500|```
+  - PE> ncli multicluster add-to-multicluster external-ip-address-or-svm-ips=$PC_HOST username=admin password=yaknow
+  - Notify bart.grootzevert when fixed
+
+- ADC2 wonky
+  - 2019-02-15 16:12:08|20294|pe_auth|Adjusted directory-url=ldap://10.42.23.40:389 because AOS-5.10.0.1 >= 5.9
+2019-02-15 16:12:08|20294|pe_auth|Configure PE external authentication
+Error: Failed to process server response. Possible reason includes version mismatch between NCLI and Prism Gateway server.
+2019-02-15 16:17:12|20294|pe_auth|Configure PE role map
+Error: Directory name NTNXLAB does not exist
+  - workaround: rerun script, all good.
 
 - FIXED = PC 5.9 authentication regression
   - https://jira.nutanix.com/browse/ENG-180716 = "Invalid service account details" error message is incorrect
@@ -67,7 +76,12 @@
         - https://stackoverflow.com/questions/28320134/how-to-list-all-tags-for-a-docker-image-on-a-remote-registry
     - purge unused container tags
 - Small improvements/bugs:
+  - Check DNS for cluster is set
   - Banner: PC-X bug:,@HPOC #
+    - PE banner: PUT /PrismGateway/services/rest/v1/application/system_data
+    {"type":"WELCOME_BANNER","key":"welcome_banner_status","value":true,"username":"system_data","updatedTimeInUsecs":1550212264611000}
+    {"type":"WELCOME_BANNER","key":"welcome_banner_content","value":"Welcome!","username":"system_data","updatedTimeInUsecs":1550212264751000}
+  - Add AutoDC to PE DNS, like PC_DNS
   - Duplicate images are already active/uploaded on PC: check on import/inactive?
   - dependencies 'install' 'sshpass' && dependencies 'install' 'jq' || exit 13 everywhere for robustness/parallelization
   - capture NFS URL timeout error message?
@@ -98,6 +112,15 @@
 - RFE: AOS 5.10.0.1 may need latest or have incompatible AHV release
   - PE: ncli software ls software-type=Hypervisor
     - cluster --version <version.185> --md5sum=<md5 from portal> --bundle=<full path to bundle location on CVM> -p host_upgrade
+- RFE: refactor sshpass dependency
+  - Sylvain Huguet   https://nutanix.slack.com/archives/C0JSE04TA/p1549918415017800?thread_ts=1549915109.010300&cid=C0JSE04TA
+    @mark.lavi jot down a note somewhere that I need to revisit that one with you, maybe providing an alternative version as a Docker container would help. Many people have Docker for Mac/Docker for Windows these days
+    Or we can replace that `sshpass` dependancy with a Python script instead, might be another idea.
+    Or start with an API call to push an SSH key to the cluster... then ssh should work passwordless.
+    Chris Rasmussen
+    @shu API call or Python would be preferable, IMO.  More likely that a Python binary already exists on the user's system than Docker.
+    Sylvain Huguet: Docker has other added benefits in terms of packaging sources/binaries with the script and using the docker hub as a CDN/delivery mechanism, especially with Big Bang happening. But we can at least provide alternative method to `sshpass` based on some logic to identify what’s available on the machine.
+    Chris Rasmussen: Yeah, not saying Docker is a _bad_ idea.  Just that in terms of the number of people that could use this script without any changes, Python/API is likely the best choice (on OS X).
 - Test Calm 5.8 bootcamp labs and 5.5-6 bugs
   - https://github.com/nutanixworkshops/introcalm
   vs. https://github.com/mlavi/calm_workshop
@@ -296,6 +319,7 @@ I've looked into some server testing frameworks.
 - Acknowledge https://drt-it-github-prod-1.eng.nutanix.com/sylvain-huguet/auto-hpoc
   - "Drafted a first version. Then @Christophe Jauffret took over and polished it
     Then we handed over the whole thing to Matt and Nathan during the prep for TS18"
+- https://github.com/MMouse-23/FoundationDemoAddon in Powershell!
 - One more: @anthony.c?
 - Add links: https://drt-it-github-prod-1.eng.nutanix.com/akim-sissaoui/calm_aws_setup_blueprint/blob/master/Action%20Create%20Project/3-Create%20AWS%20Calm%20Entry
 - https://gitlab.com/Chandru.tkc/Serviceability_shared/
@@ -411,6 +435,7 @@ or nuclei, only on PCVM or in container
   - \\lab-ftp\ftp
   - smb://hpoc-ftp/ = \\hpoc-ftp\ftp
   - ftp://nutanix:nutanix/4u@hostedpoc.nutanix.com/
+  - \\pocfs.nutanixdc.local and \\hpoc-afs.nutanixdc.local
   - smb://pocfs/    = \\pocfs\iso\ and \images\
     - nutanixdc\username
   - smb://pocfs.nutanixdc.local use: auth

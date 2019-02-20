@@ -2,17 +2,22 @@
 
 # shellcheck disable=SC2034
           RELEASE='release.json'
+# Sync the following to lib.common.sh::ntnx_download-Case=PC
 # Browse to: https://portal.nutanix.com/#/page/releases/prismDetails
-# Find ${PC_VERSION} in the Additional Releases section on the lower right side
-# Provide the metadata URL for the "PC 1-click deploy from PE" option to PC_*_METAURL
-   PC_DEV_VERSION='5.10.1'
-   PC_DEV_METAURL='http://download.nutanix.com/pc/one-click-pc-deployment/5.10.1/pcdeploy-5.10.1.json'
-#   PC_DEV_METAURL='http://download.nutanix.com/pc/one-click-pc-deployment/5.10.0.1/v1/euphrates-5.10.0.1-stable-prism_central_metadata.json'
+# - Find ${PC_VERSION} in the Additional Releases section on the lower right side
+# - Provide the metadata URL for the "PC 1-click deploy from PE" option to PC_*_METAURL
+   PC_DEV_VERSION='5.10.1.1'
+   PC_DEV_METAURL='http://download.nutanix.com/pc/one-click-pc-deployment/5.10.1.1/pcdeploy-5.10.1.1.json'
 PC_STABLE_VERSION='5.8.2'
 PC_STABLE_METAURL='http://download.nutanix.com/pc/one-click-pc-deployment/5.8.2/v1/pc_deploy-5.8.2.json'
+# Sync the following to lib.common.sh::ntnx_download-Case=FILES
 # Browse to: https://portal.nutanix.com/#/page/releases/afsDetails?targetVal=GA
-# Find ${FILES_VERSION} in the Additional Releases section on the lower right side
-# Provide Upgrade metadata file URL to FILES_METAURL
+# - Find ${FILES_VERSION} in the Additional Releases section on the lower right side
+# - Provide "Upgrade Metadata File" URL to FILES_METAURL
+    FILES_VERSION='3.2.0.1'
+    FILES_METAURL='http://download.nutanix.com/afs/7.3/nutanix-afs-el7.3-release-afs-3.2.0.1-stable-metadata.json'
+    # 2019-02-15: override until metadata URL fixed
+        #FILES_URL='https://s3.amazonaws.com/get-ahv-images/nutanix-afs-el7.3-release-afs-3.2.0.1-stable.qcow2'
     FILES_VERSION='3.2.0'
     FILES_METAURL='http://download.nutanix.com/afs/3.2.0/v1/afs-3.2.0.json'
 
@@ -32,6 +37,7 @@ NTNX_INIT_PASSWORD='nutanix/4u'
        'https://github.com/stedolan/jq/releases/download/jq-1.5/jq-linux64' \
  )
    QCOW2_REPOS=(\
+    'http://10.42.8.50/images/' \
     'http://10.21.250.221/images/tech-enablement/' \
     'http://10.21.250.221/images/ahv/techsummit/' \
     'http://10.132.128.50:81/share/saved-images/' \
@@ -96,10 +102,10 @@ AUTH_ADMIN_GROUP='SSP Admins'
 # For Nutanix HPOC/Marketing clusters (10.20, 10.21, 10.55, 10.42)
 # https://sewiki.nutanix.com/index.php/HPOC_IP_Schema
 case "${OCTET[0]}.${OCTET[1]}" in
-  10.20 )
+  10.20 ) #Marketing: us-west = SV
     DNS_SERVERS='10.21.253.10'
     ;;
-  10.21 )
+  10.21 ) #HPOC: us-west = SV
     if (( ${OCTET[2]} == 60 )) || (( ${OCTET[2]} == 77 )); then
       log 'GPU cluster, aborting! See https://sewiki.nutanix.com/index.php/Hosted_Proof_of_Concept_(HPOC)#GPU_Clusters'
       exit 0
@@ -118,7 +124,7 @@ case "${OCTET[0]}.${OCTET[1]}" in
     NW2_DHCP_START="${IPV4_PREFIX}.132"
       NW2_DHCP_END="${IPV4_PREFIX}.253"
     ;;
-  10.55 )
+  10.55 ) # HPOC us-east = DUR
        DNS_SERVERS='10.21.253.11'
           NW2_NAME='Secondary'
           NW2_VLAN=$(( ${OCTET[2]} * 10 + 1 ))
@@ -126,21 +132,20 @@ case "${OCTET[0]}.${OCTET[1]}" in
     NW2_DHCP_START="${IPV4_PREFIX}.132"
       NW2_DHCP_END="${IPV4_PREFIX}.253"
     ;;
-  10.42 )
+  10.42 ) # HPOC us-west = PHX
        DNS_SERVERS='10.42.196.10'
           NW2_NAME='Secondary'
           NW2_VLAN=$(( ${OCTET[2]} * 10 + 1 ))
-        NW2_SUBNET="${IPV4_PREFIX}.128/25"
+        NW2_SUBNET="${IPV4_PREFIX}.129/25"
     NW2_DHCP_START="${IPV4_PREFIX}.132"
       NW2_DHCP_END="${IPV4_PREFIX}.253"
     ;;
-  10.132 )
-    # https://sewiki.nutanix.com/index.php/SH-COLO-IP-ADDR
+  10.132 ) # https://sewiki.nutanix.com/index.php/SH-COLO-IP-ADDR
        DNS_SERVERS='10.132.71.40'
         NW1_SUBNET="${IPV4_PREFIX%.*}.128.4/17"
     NW1_DHCP_START="${IPV4_PREFIX}.100"
       NW1_DHCP_END="${IPV4_PREFIX}.250"
-      # pc deploy file local override, TODO:30 make an PC_URL array and eliminate
+      # PC deploy file local override, TODO:30 make an PC_URL array and eliminate
                PC_URL=http://10.132.128.50/E%3A/share/Nutanix/PrismCentral/pc-${PC_VERSION}-deploy.tar
        PC_DEV_METAURL=http://10.132.128.50/E%3A/share/Nutanix/PrismCentral/pc-${PC_VERSION}-deploy-metadata.json
     PC_STABLE_METAURL=${PC_DEV_METAURL}
